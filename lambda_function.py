@@ -10,13 +10,13 @@ from linebot.exceptions import (LineBotApiError, InvalidSignatureError)
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
 
-#LINEBOTと接続するための記述
-#環境変数からLINEBotのチャンネルアクセストークンとシークレットを読み込む
+#環境変数からLINEBotのチャンネルアクセストークンとシークレットを読込
+#環境変数からChatGpt APIの鍵を読込
 channel_secret = os.getenv('LINE_CHANNEL_SECRET', None)
 channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN', None)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-#無いならエラー
+#トークンが確認できない場合エラー出力
 if channel_secret is None:
     logger.error('Specify LINE_CHANNEL_SECRET as environment variable.')
     sys.exit(1)
@@ -45,23 +45,22 @@ def lambda_handler(event, context):
                   "headers": {},
                   "body": "Error"}
 
-#メッセージを受け取る・受け取ったら受け取ったテキストを返信する
+#LINEからのメッセージを ChatGPTに送信、受信したテキストをLINEで返信
     @handler.add(MessageEvent, message=TextMessage)
     def message(line_event):
         text = line_event.message.text
-  
+
         completion = openai.ChatCompletion.create(
           model="gpt-3.5-turbo",
           messages=[
             {"role": "user", "content": text}
           ]
         )
+  #受信したテキストをCloudWatchLogsに出力する
         print(completion.choices[0].message.content)
-        text=completion.choices[0].message.content
+        text=completion.choices[0].message.content.lstrip()
 
         line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=text))
-
-
 
 #例外処理としての動作
     try:
